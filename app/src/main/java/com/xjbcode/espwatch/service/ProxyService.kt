@@ -2,6 +2,7 @@ package com.xjbcode.espwatch.service
 
 import android.app.*
 import android.content.Intent
+import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -218,13 +219,14 @@ class ProxyService : Service() {
             Log.d(TAG, "Proxying request: $method $url")
             
             // Execute request through OkHttp
+            val requestBody = body?.toRequestBody()
             val request = when (method.uppercase()) {
                 "GET" -> requestBuilder.url(url).get()
-                "POST" -> requestBuilder.url(url).post(body?.toRequestBody())
-                "PUT" -> requestBuilder.url(url).put(body?.toRequestBody())
+                "POST" -> requestBuilder.url(url).post(requestBody)
+                "PUT" -> requestBuilder.url(url).put(requestBody)
                 "DELETE" -> requestBuilder.url(url).delete()
-                "PATCH" -> requestBuilder.url(url).patch(body?.toRequestBody())
-                else -> requestBuilder.url(url).method(method, body?.toRequestBody())
+                "PATCH" -> requestBuilder.url(url).patch(requestBody)
+                else -> requestBuilder.url(url).method(method, requestBody)
             }.apply {
                 headers.forEach { (name, value) ->
                     // Skip hop-by-hop headers
@@ -279,6 +281,6 @@ class ProxyService : Service() {
     }
 
     private fun ByteArray.toRequestBody(): RequestBody {
-        return RequestBody.create(null, this)
+        return this.toRequestBody(null)
     }
 }

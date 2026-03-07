@@ -3,6 +3,7 @@ package com.xjbcode.espwatch.bluetooth
 import android.annotation.SuppressLint
 import android.app.*
 import android.bluetooth.*
+import android.bluetooth.le.*
 import android.content.Intent
 import android.os.Build
 import android.os.Binder
