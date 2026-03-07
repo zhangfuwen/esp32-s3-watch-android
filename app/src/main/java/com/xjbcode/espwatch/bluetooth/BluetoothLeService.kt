@@ -106,7 +106,7 @@ class BluetoothLeService : Service() {
         }
 
         val scanFilter = ScanFilter.Builder()
-            .setServiceUuid(WATCH_SERVICE_UUID)
+            .setServiceUuid(android.os.ParcelUuid(WATCH_SERVICE_UUID))
             .build()
 
         val scanSettings = ScanSettings.Builder()

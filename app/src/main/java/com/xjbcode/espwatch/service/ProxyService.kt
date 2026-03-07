@@ -219,14 +219,14 @@ class ProxyService : Service() {
             Log.d(TAG, "Proxying request: $method $url")
             
             // Execute request through OkHttp
-            val requestBody = body?.toRequestBody()
+            val requestBody = if (body != null) okhttp3.RequestBody.create(null, body) else null
             val request = when (method.uppercase()) {
                 "GET" -> requestBuilder.url(url).get()
-                "POST" -> requestBuilder.url(url).post(requestBody)
-                "PUT" -> requestBuilder.url(url).put(requestBody)
+                "POST" -> requestBuilder.url(url).post(requestBody!!)
+                "PUT" -> requestBuilder.url(url).put(requestBody!!)
                 "DELETE" -> requestBuilder.url(url).delete()
-                "PATCH" -> requestBuilder.url(url).patch(requestBody)
-                else -> requestBuilder.url(url).method(method, requestBody)
+                "PATCH" -> requestBuilder.url(url).patch(requestBody!!)
+                else -> requestBuilder.url(url).method(method, requestBody!!)
             }.apply {
                 headers.forEach { (name, value) ->
                     // Skip hop-by-hop headers
@@ -280,7 +280,5 @@ class ProxyService : Service() {
         }
     }
 
-    private fun ByteArray.toRequestBody(): RequestBody {
-        return this.toRequestBody(null)
-    }
+    // Removed - using OkHttp's built-in extension
 }
