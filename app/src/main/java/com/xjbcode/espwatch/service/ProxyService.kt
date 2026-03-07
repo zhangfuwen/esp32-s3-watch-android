@@ -105,7 +105,7 @@ class ProxyService : Service() {
     }
 
     private fun createNotification(): Notification {
-        val intent = Intent(this, com.xjbcode.espwatch.MainActivity::class.java)
+        val intent = android.content.Intent(this, com.xjbcode.espwatch.MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
