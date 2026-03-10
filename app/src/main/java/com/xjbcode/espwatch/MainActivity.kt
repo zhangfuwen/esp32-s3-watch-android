@@ -33,7 +33,8 @@ class MainActivity : AppCompatActivity() {
     private var isBound = false
 
     private lateinit var deviceAdapter: DeviceAdapter
-    private val discoveredDevices = mutableListOf<DeviceInfo>()
+    private val _discoveredDevices = mutableListOf<DeviceInfo>()
+    private val discoveredDevices: List<DeviceInfo> = _discoveredDevices
 
     private val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(
@@ -123,16 +124,16 @@ class MainActivity : AppCompatActivity() {
             onDeviceDiscovered = { device ->
                 runOnUiThread {
                     // Update or add device
-                    val existingIndex = discoveredDevices.indexOfFirst { it.address == device.address }
+                    val existingIndex = _discoveredDevices.indexOfFirst { it.address == device.address }
                     if (existingIndex >= 0) {
-                        discoveredDevices[existingIndex] = device
+                        _discoveredDevices[existingIndex] = device
                     } else {
-                        discoveredDevices.add(device)
+                        _discoveredDevices.add(device)
                     }
                     // Sort by signal strength
-                    discoveredDevices.sortByDescending { it.rssi }
-                    deviceAdapter.submitList(discoveredDevices.toList())
-                    binding.tvDeviceCount.text = "发现 ${discoveredDevices.size} 个设备"
+                    _discoveredDevices.sortByDescending { it.rssi }
+                    deviceAdapter.submitList(_discoveredDevices.toList())
+                    binding.tvDeviceCount.text = "发现 ${_discoveredDevices.size} 个设备"
                 }
             }
             
@@ -194,7 +195,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun scanForDevices() {
         // Clear previous results
-        discoveredDevices.clear()
+        _discoveredDevices.clear()
         deviceAdapter.submitList(emptyList())
         
         bluetoothLeService?.scanForDevices()
