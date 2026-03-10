@@ -85,7 +85,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private var proxyService: ProxyService? = null
     private val proxyServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as ProxyService.LocalBinder
