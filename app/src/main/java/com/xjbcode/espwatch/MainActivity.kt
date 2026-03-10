@@ -30,14 +30,14 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var bluetoothLeService: BluetoothLeService? = null
-    private var proxyService: ProxyService? = null
     private var isBound = false
 
     private lateinit var deviceAdapter: DeviceAdapter
     private val _discoveredDevices = mutableListOf<DeviceInfo>()
     private val discoveredDevices: List<DeviceInfo> = _discoveredDevices
     
-    // Proxy logs
+    // Proxy
+    private var proxyService: ProxyService? = null
     private val requestLogs = mutableListOf<ProxyService.ProxyRequestInfo>()
 
     private val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
