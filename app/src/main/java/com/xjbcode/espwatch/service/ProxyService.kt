@@ -201,6 +201,9 @@ class ProxyService : Service() {
         val inputStream = clientSocket.getInputStream()
         val outputStream = clientSocket.getOutputStream()
         
+        // Request info for logging (defined outside try for catch access)
+        var requestInfo: ProxyRequestInfo? = null
+        
         try {
             // Read HTTP request
             val requestBuilder = Request.Builder()
@@ -247,7 +250,7 @@ class ProxyService : Service() {
             Log.d(TAG, "Proxying request: $method $url")
             
             // Create request info for logging
-            val requestInfo = ProxyRequestInfo(
+            requestInfo = ProxyRequestInfo(
                 method = method,
                 url = url,
                 headers = headers.toMap(),
@@ -321,12 +324,12 @@ class ProxyService : Service() {
             errorCount++
             
             // Update request info with error
-            val errorInfo = requestInfo.copy(
-                error = e.message
-            )
-            lastRequest = errorInfo
-            withContext(Dispatchers.Main) {
-                onRequestLogged?.invoke(errorInfo)
+            requestInfo?.let {
+                val errorInfo = it.copy(error = e.message)
+                lastRequest = errorInfo
+                withContext(Dispatchers.Main) {
+                    onRequestLogged?.invoke(errorInfo)
+                }
             }
             
             // Send error response
