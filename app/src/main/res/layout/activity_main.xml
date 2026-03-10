@@ -11,7 +11,7 @@
         android:id="@+id/tvTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="ESP32-S3 Watch Companion"
+        android:text="ESP32-S3 Watch 伴侣"
         android:textSize="24sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -23,23 +23,58 @@
         android:id="@+id/tvConnectionStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Disconnected"
+        android:layout_marginTop="8dp"
+        android:text="未连接"
         android:textColor="@android:color/darker_gray"
+        android:textSize="16sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+
+    <!-- Device List Section -->
+    <TextView
+        android:id="@+id/tvDeviceListTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="发现的设备"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvConnectionStatus" />
+
+    <TextView
+        android:id="@+id/tvDeviceCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="发现 0 个设备"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tvDeviceListTitle"
+        app:layout_constraintBottom_toBottomOf="@id/tvDeviceListTitle" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvDevices"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@id/tilDeviceAddress"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvDeviceListTitle"
+        tools:listitem="@layout/item_device" />
 
     <!-- Device Address Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/tilDeviceAddress"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:hint="Device Address (e.g., XX:XX:XX:XX:XX:XX)"
+        android:hint="设备地址 (例如: XX:XX:XX:XX:XX:XX)"
+        app:layout_constraintBottom_toTopOf="@id/btnScan"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvConnectionStatus">
+        app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etDeviceAddress"
@@ -53,11 +88,11 @@
         android:id="@+id/btnScan"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Scan for Devices"
+        android:layout_marginTop="8dp"
+        android:text="扫描设备"
+        app:layout_constraintBottom_toTopOf="@id/btnConnect"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tilDeviceAddress" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- Connect Button -->
     <Button
@@ -65,44 +100,42 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Connect"
+        android:text="连接"
+        app:layout_constraintBottom_toTopOf="@id/divider"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnScan" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- Proxy Section -->
     <View
         android:id="@+id/divider"
         android:layout_width="0dp"
         android:layout_height="1dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginBottom="8dp"
         android:background="@android:color/darker_gray"
+        app:layout_constraintBottom_toTopOf="@id/tvProxyTitle"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnConnect" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/tvProxyTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="HTTP Proxy Service"
-        android:textSize="18sp"
+        android:layout_marginBottom="8dp"
+        android:text="HTTP 代理服务"
+        android:textSize="16sp"
         android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/divider" />
+        app:layout_constraintBottom_toTopOf="@id/tilProxyPort"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- Proxy Port Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/tilProxyPort"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="Proxy Port"
+        android:hint="代理端口"
+        app:layout_constraintBottom_toTopOf="@id/btnStartProxy"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvProxyTitle">
+        app:layout_constraintStart_toStartOf="parent">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etProxyPort"
@@ -112,50 +145,56 @@
             android:text="8080" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Start Proxy Button -->
-    <Button
-        android:id="@+id/btnStartProxy"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Start Proxy"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tilProxyPort" />
-
-    <!-- Stop Proxy Button -->
-    <Button
-        android:id="@+id/btnStopProxy"
+    <!-- Proxy Buttons -->
+    <LinearLayout
+        android:id="@+id/llProxyButtons"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:enabled="false"
-        android:text="Stop Proxy"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@id/tvProxyStatus"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnStartProxy" />
+        app:layout_constraintStart_toStartOf="parent">
 
-    <!-- Status Text -->
+        <Button
+            android:id="@+id/btnStartProxy"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:layout_weight="1"
+            android:text="启动代理" />
+
+        <Button
+            android:id="@+id/btnStopProxy"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:enabled="false"
+            android:text="停止代理" />
+    </LinearLayout>
+
+    <!-- Proxy Status -->
     <TextView
         android:id="@+id/tvProxyStatus"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="Proxy stopped"
+        android:text="代理已停止"
         android:textColor="@android:color/darker_gray"
+        app:layout_constraintBottom_toTopOf="@id/tvStatus"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnStopProxy" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- General Status -->
     <TextView
         android:id="@+id/tvStatus"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="Ready"
+        android:text="就绪"
         android:textColor="@android:color/darker_gray"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

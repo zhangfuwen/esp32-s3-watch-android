@@ -11,8 +11,10 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.xjbcode.espwatch.R
+import com.xjbcode.espwatch.data.DeviceInfo
 import kotlinx.coroutines.*
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 class BluetoothLeService : Service() {
 
@@ -41,9 +43,16 @@ class BluetoothLeService : Service() {
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
     private var readCharacteristic: BluetoothGattCharacteristic? = null
 
-    // Callback for device connection
+    // Discovered devices
+    private val _discoveredDevices = ConcurrentHashMap<String, DeviceInfo>()
+    val discoveredDevices: List<DeviceInfo>
+        get() = _discoveredDevices.values.sortedByDescending { it.rssi }
+
+    // Callbacks
     var onConnectionChanged: ((Boolean) -> Unit)? = null
     var onDataReceived: ((ByteArray) -> Unit)? = null
+    var onDeviceDiscovered: ((DeviceInfo) -> Unit)? = null
+    var onScanStateChanged: ((Boolean) -> Unit)? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): BluetoothLeService = this@BluetoothLeService
@@ -83,38 +92,51 @@ class BluetoothLeService : Service() {
             stopScan()
         }
 
+        // Clear previous results
+        _discoveredDevices.clear()
         isScanning = true
+        onScanStateChanged?.invoke(true)
         Log.d(TAG, "Starting BLE scan")
 
         val scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val device = result.device
-                Log.d(TAG, "Found device: ${device.name} (${device.address})")
+                val rssi = result.rssi
                 
-                // Look for ESP32 devices
-                if (device.name?.contains("ESP32", ignoreCase = true) == true) {
-                    Log.d(TAG, "Found ESP32 device: ${device.address}")
-                    // You can broadcast this or use a callback
-                    stopScan()
+                // Create device info
+                val deviceInfo = DeviceInfo.fromScanResult(device, rssi)
+                
+                // Add or update device
+                val existing = _discoveredDevices[device.address]
+                if (existing == null || existing.rssi < rssi) {
+                    _discoveredDevices[device.address] = deviceInfo
+                    Log.d(TAG, "Found device: ${device.name} (${device.address}) RSSI: $rssi")
+                    onDeviceDiscovered?.invoke(deviceInfo)
+                }
+            }
+
+            override fun onBatchScanResults(results: List<ScanResult>) {
+                results.forEach { result ->
+                    onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, result)
                 }
             }
 
             override fun onScanFailed(errorCode: Int) {
                 Log.e(TAG, "Scan failed with error: $errorCode")
                 isScanning = false
+                onScanStateChanged?.invoke(false)
             }
         }
 
-        val scanFilter = ScanFilter.Builder()
-            .setServiceUuid(android.os.ParcelUuid(WATCH_SERVICE_UUID))
-            .build()
-
+        // Scan without filter to find all BLE devices
+        // You can change this to filter by service UUID if needed
         val scanSettings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
             .build()
 
         bluetoothAdapter?.bluetoothLeScanner?.startScan(
-            listOf(scanFilter),
+            null,  // No filter - scan all devices
             scanSettings,
             scanCallback
         )
@@ -122,7 +144,9 @@ class BluetoothLeService : Service() {
         // Auto-stop scan after 30 seconds
         scanJob.launch {
             delay(30000)
-            stopScan()
+            if (isScanning) {
+                stopScan()
+            }
         }
     }
 
@@ -131,12 +155,18 @@ class BluetoothLeService : Service() {
         if (isScanning) {
             bluetoothAdapter?.bluetoothLeScanner?.stopScan(object : ScanCallback() {})
             isScanning = false
+            onScanStateChanged?.invoke(false)
             Log.d(TAG, "BLE scan stopped")
         }
     }
 
+    fun isScanning(): Boolean = isScanning
+
     @SuppressLint("MissingPermission")
     fun connect(address: String) {
+        // Stop scanning when connecting
+        stopScan()
+        
         val device = bluetoothAdapter?.getRemoteDevice(address)
         if (device == null) {
             Log.e(TAG, "Device not found: $address")
@@ -296,7 +326,7 @@ class BluetoothLeService : Service() {
 
     private fun startForeground(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notification, foregroundServiceType)
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }

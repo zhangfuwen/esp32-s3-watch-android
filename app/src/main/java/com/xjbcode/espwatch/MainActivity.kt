@@ -13,9 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.xjbcode.espwatch.bluetooth.BluetoothLeService
+import com.xjbcode.espwatch.data.DeviceInfo
 import com.xjbcode.espwatch.databinding.ActivityMainBinding
 import com.xjbcode.espwatch.service.ProxyService
+import com.xjbcode.espwatch.ui.DeviceAdapter
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -28,6 +31,9 @@ class MainActivity : AppCompatActivity() {
     private var bluetoothLeService: BluetoothLeService? = null
     private var proxyService: ProxyService? = null
     private var isBound = false
+
+    private lateinit var deviceAdapter: DeviceAdapter
+    private val discoveredDevices = mutableListOf<DeviceInfo>()
 
     private val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(
@@ -50,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         if (allGranted) {
             initializeBluetooth()
         } else {
-            Toast.makeText(this, "Permissions required for Bluetooth", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "需要蓝牙权限", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -60,6 +66,9 @@ class MainActivity : AppCompatActivity() {
             bluetoothLeService = binder.getService()
             isBound = true
             Log.d(TAG, "BluetoothLeService connected")
+            
+            // Set up callbacks
+            setupServiceCallbacks()
             updateUI()
         }
 
@@ -76,13 +85,13 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setupRecyclerView()
         setupUI()
         checkPermissions()
     }
 
     override fun onStart() {
         super.onStart()
-        // Bind to Bluetooth service
         Intent(this, BluetoothLeService::class.java).also { intent ->
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
@@ -96,9 +105,59 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupRecyclerView() {
+        deviceAdapter = DeviceAdapter { device ->
+            // On device click, fill the address and connect
+            binding.etDeviceAddress.setText(device.address)
+            connectToDevice()
+        }
+        
+        binding.rvDevices.apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = deviceAdapter
+        }
+    }
+
+    private fun setupServiceCallbacks() {
+        bluetoothLeService?.apply {
+            onDeviceDiscovered = { device ->
+                runOnUiThread {
+                    // Update or add device
+                    val existingIndex = discoveredDevices.indexOfFirst { it.address == device.address }
+                    if (existingIndex >= 0) {
+                        discoveredDevices[existingIndex] = device
+                    } else {
+                        discoveredDevices.add(device)
+                    }
+                    // Sort by signal strength
+                    discoveredDevices.sortByDescending { it.rssi }
+                    deviceAdapter.submitList(discoveredDevices.toList())
+                    binding.tvDeviceCount.text = "发现 ${discoveredDevices.size} 个设备"
+                }
+            }
+            
+            onScanStateChanged = { isScanning ->
+                runOnUiThread {
+                    binding.btnScan.text = if (isScanning) "停止扫描" else "扫描设备"
+                    binding.tvStatus.text = if (isScanning) "正在扫描..." else "就绪"
+                }
+            }
+            
+            onConnectionChanged = { isConnected ->
+                runOnUiThread {
+                    updateUI()
+                }
+            }
+        }
+    }
+
     private fun setupUI() {
         binding.btnScan.setOnClickListener {
-            scanForDevices()
+            if (bluetoothLeService?.isScanning() == true) {
+                stopScan()
+            } else {
+                scanForDevices()
+            }
         }
 
         binding.btnConnect.setOnClickListener {
@@ -127,7 +186,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initializeBluetooth() {
-        // Start Bluetooth service
         Intent(this, BluetoothLeService::class.java).also { intent ->
             startService(intent)
         }
@@ -135,20 +193,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun scanForDevices() {
+        // Clear previous results
+        discoveredDevices.clear()
+        deviceAdapter.submitList(emptyList())
+        
         bluetoothLeService?.scanForDevices()
-        binding.tvStatus.text = "Scanning for devices..."
-        Toast.makeText(this, "Scanning...", Toast.LENGTH_SHORT).show()
+        binding.tvStatus.text = "正在扫描设备..."
+        Toast.makeText(this, "开始扫描", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun stopScan() {
+        bluetoothLeService?.stopScan()
+        binding.tvStatus.text = "扫描已停止"
     }
 
     private fun connectToDevice() {
         val deviceAddress = binding.etDeviceAddress.text.toString().trim()
         if (deviceAddress.isEmpty()) {
-            Toast.makeText(this, "Please enter device address", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "请输入设备地址", Toast.LENGTH_SHORT).show()
             return
         }
 
         bluetoothLeService?.connect(deviceAddress)
-        binding.tvStatus.text = "Connecting to $deviceAddress..."
+        binding.tvStatus.text = "正在连接 $deviceAddress..."
     }
 
     private fun startProxyService() {
@@ -165,10 +232,10 @@ class MainActivity : AppCompatActivity() {
                 startService(intent)
             }
             
-            binding.tvProxyStatus.text = "Proxy running on port $proxyPort"
+            binding.tvProxyStatus.text = "代理运行中 (端口: $proxyPort)"
             binding.btnStartProxy.isEnabled = false
             binding.btnStopProxy.isEnabled = true
-            Toast.makeText(this@MainActivity, "Proxy started on port $proxyPort", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainActivity, "代理已启动", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -177,15 +244,19 @@ class MainActivity : AppCompatActivity() {
             stopService(intent)
         }
         
-        binding.tvProxyStatus.text = "Proxy stopped"
+        binding.tvProxyStatus.text = "代理已停止"
         binding.btnStartProxy.isEnabled = true
         binding.btnStopProxy.isEnabled = false
-        Toast.makeText(this, "Proxy stopped", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "代理已停止", Toast.LENGTH_SHORT).show()
     }
 
     private fun updateUI() {
         val isConnected = bluetoothLeService?.isConnected ?: false
         binding.btnConnect.isEnabled = !isConnected
-        binding.tvConnectionStatus.text = if (isConnected) "Connected" else "Disconnected"
+        binding.tvConnectionStatus.text = if (isConnected) "已连接" else "未连接"
+        binding.tvConnectionStatus.setTextColor(
+            if (isConnected) getColor(android.R.color.holo_green_dark)
+            else getColor(android.R.color.darker_gray)
+        )
     }
 }

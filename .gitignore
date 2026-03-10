@@ -82,3 +82,4 @@ lint/tmp/
 *~
 .DS_Store
 Thumbs.db
+.aider*
