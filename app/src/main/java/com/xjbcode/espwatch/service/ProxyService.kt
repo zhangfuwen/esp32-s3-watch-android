@@ -116,6 +116,8 @@ class ProxyService : Service() {
         okHttpClient.dispatcher.executorService.shutdown()
         Log.d(TAG, "ProxyService destroyed")
     }
+    
+    fun isRunning(): Boolean = isRunning
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
