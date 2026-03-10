@@ -32,6 +32,17 @@ class ProxyService : Service() {
     private var proxyPort = DEFAULT_PROXY_PORT
     private var isRunning = false
     
+    // Statistics
+    var requestCount = 0
+        private set
+    var errorCount = 0
+        private set
+    var lastRequest: ProxyRequestInfo? = null
+        private set
+    
+    // Callback for UI updates
+    var onRequestLogged: ((ProxyRequestInfo) -> Unit)? = null
+    
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -56,6 +67,23 @@ class ProxyService : Service() {
         val headers: Map<String, String>,
         val body: ByteArray?
     )
+    
+    // Info for logging/display
+    data class ProxyRequestInfo(
+        val timestamp: Long = System.currentTimeMillis(),
+        val method: String,
+        val url: String,
+        val headers: Map<String, String>,
+        val bodyPreview: String?,  // First 500 chars
+        val responseCode: Int? = null,
+        val responsePreview: String? = null,
+        val error: String? = null
+    ) {
+        fun formatTime(): String {
+            return java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                .format(java.util.Date(timestamp))
+        }
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): ProxyService = this@ProxyService
@@ -218,6 +246,21 @@ class ProxyService : Service() {
             
             Log.d(TAG, "Proxying request: $method $url")
             
+            // Create request info for logging
+            val requestInfo = ProxyRequestInfo(
+                method = method,
+                url = url,
+                headers = headers.toMap(),
+                bodyPreview = body?.let { String(it).take(500) }
+            )
+            lastRequest = requestInfo
+            requestCount++
+            
+            // Notify UI
+            withContext(Dispatchers.Main) {
+                onRequestLogged?.invoke(requestInfo)
+            }
+            
             // Execute request through OkHttp
             val requestBody = if (body != null) okhttp3.RequestBody.create(null, body) else null
             val request = when (method.uppercase()) {
@@ -240,6 +283,19 @@ class ProxyService : Service() {
             
             val response = okHttpClient.newCall(request).execute()
             
+            // Update request info with response
+            val responseBody = response.body?.bytes()
+            val updatedInfo = requestInfo.copy(
+                responseCode = response.code,
+                responsePreview = responseBody?.let { String(it).take(500) }
+            )
+            lastRequest = updatedInfo
+            
+            // Notify UI again with response
+            withContext(Dispatchers.Main) {
+                onRequestLogged?.invoke(updatedInfo)
+            }
+            
             // Send response back to client
             val statusLine = "HTTP/1.1 ${response.code} ${response.message}"
             outputStream.write(statusLine.toByteArray())
@@ -252,7 +308,7 @@ class ProxyService : Service() {
             outputStream.write("\r\n".toByteArray())
             
             // Write body
-            response.body?.bytes()?.let { bodyBytes ->
+            responseBody?.let { bodyBytes ->
                 outputStream.write(bodyBytes)
             }
             
@@ -262,6 +318,16 @@ class ProxyService : Service() {
             
         } catch (e: Exception) {
             Log.e(TAG, "Error handling client request", e)
+            errorCount++
+            
+            // Update request info with error
+            val errorInfo = requestInfo.copy(
+                error = e.message
+            )
+            lastRequest = errorInfo
+            withContext(Dispatchers.Main) {
+                onRequestLogged?.invoke(errorInfo)
+            }
             
             // Send error response
             try {

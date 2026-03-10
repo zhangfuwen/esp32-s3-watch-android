@@ -183,6 +183,36 @@
         android:gravity="center"
         android:text="代理已停止"
         android:textColor="@android:color/darker_gray"
+        app:layout_constraintBottom_toTopOf="@id/tvProxyLogs"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Proxy Logs -->
+    <TextView
+        android:id="@+id/tvProxyLogs"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:background="@android:color/black"
+        android:textColor="@android:color/holo_green_light"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:scrollbars="vertical"
+        android:padding="8dp"
+        android:text="HTTP 代理日志..."
+        app:layout_constraintBottom_toTopOf="@id/btnClearLogs"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvProxyStatus" />
+
+    <Button
+        android:id="@+id/btnClearLogs"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="清除日志"
+        android:textSize="12sp"
         app:layout_constraintBottom_toTopOf="@id/tvStatus"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -192,7 +222,6 @@
         android:id="@+id/tvStatus"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
         android:gravity="center"
         android:text="就绪"
         android:textColor="@android:color/darker_gray"

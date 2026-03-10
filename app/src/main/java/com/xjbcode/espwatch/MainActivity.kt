@@ -20,6 +20,7 @@ import com.xjbcode.espwatch.databinding.ActivityMainBinding
 import com.xjbcode.espwatch.service.ProxyService
 import com.xjbcode.espwatch.ui.DeviceAdapter
 import kotlinx.coroutines.launch
+import android.text.method.ScrollingMovementMethod
 
 class MainActivity : AppCompatActivity() {
 
@@ -35,6 +36,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deviceAdapter: DeviceAdapter
     private val _discoveredDevices = mutableListOf<DeviceInfo>()
     private val discoveredDevices: List<DeviceInfo> = _discoveredDevices
+    
+    // Proxy logs
+    private val requestLogs = mutableListOf<ProxyService.ProxyRequestInfo>()
 
     private val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         arrayOf(
@@ -80,6 +84,28 @@ class MainActivity : AppCompatActivity() {
             updateUI()
         }
     }
+    
+    private var proxyService: ProxyService? = null
+    private val proxyServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as ProxyService.LocalBinder
+            proxyService = binder.getService()
+            
+            // Set up proxy request logging
+            proxyService?.onRequestLogged = { requestInfo ->
+                runOnUiThread {
+                    addRequestLog(requestInfo)
+                }
+            }
+            
+            updateProxyUI()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            proxyService = null
+            updateProxyUI()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +122,9 @@ class MainActivity : AppCompatActivity() {
         Intent(this, BluetoothLeService::class.java).also { intent ->
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
+        Intent(this, ProxyService::class.java).also { intent ->
+            bindService(intent, proxyServiceConnection, Context.BIND_AUTO_CREATE)
+        }
     }
 
     override fun onStop() {
@@ -104,6 +133,7 @@ class MainActivity : AppCompatActivity() {
             unbindService(serviceConnection)
             isBound = false
         }
+        unbindService(proxyServiceConnection)
     }
 
     private fun setupRecyclerView() {
@@ -172,6 +202,54 @@ class MainActivity : AppCompatActivity() {
         binding.btnStopProxy.setOnClickListener {
             stopProxyService()
         }
+        
+        binding.btnClearLogs.setOnClickListener {
+            clearRequestLogs()
+        }
+        
+        // Make log text view scrollable
+        binding.tvProxyLogs.movementMethod = ScrollingMovementMethod()
+    }
+    
+    private fun addRequestLog(requestInfo: ProxyService.ProxyRequestInfo) {
+        requestLogs.add(requestInfo)
+        if (requestLogs.size > 50) {  // Keep last 50 requests
+            requestLogs.removeAt(0)
+        }
+        updateLogDisplay()
+    }
+    
+    private fun clearRequestLogs() {
+        requestLogs.clear()
+        updateLogDisplay()
+    }
+    
+    private fun updateLogDisplay() {
+        val sb = StringBuilder()
+        sb.appendLine("=== HTTP 代理日志 ===")
+        sb.appendLine("总请求: ${proxyService?.requestCount ?: 0} | 错误: ${proxyService?.errorCount ?: 0}")
+        sb.appendLine()
+        
+        requestLogs.asReversed().forEach { log ->
+            sb.appendLine("[${log.formatTime()}] ${log.method} ${log.url.take(50)}")
+            log.responseCode?.let {
+                sb.appendLine("  ↳ 响应: $it")
+            }
+            log.error?.let {
+                sb.appendLine("  ↳ 错误: $it")
+            }
+            sb.appendLine()
+        }
+        
+        binding.tvProxyLogs.text = sb.toString()
+        
+        // Auto-scroll to bottom
+        binding.tvProxyLogs.post {
+            val scrollAmount = binding.tvProxyLogs.layout.getLineTop(binding.tvProxyLogs.lineCount) - binding.tvProxyLogs.height
+            if (scrollAmount > 0) {
+                binding.tvProxyLogs.scrollTo(0, scrollAmount)
+            }
+        }
     }
 
     private fun checkPermissions() {
@@ -233,9 +311,7 @@ class MainActivity : AppCompatActivity() {
                 startService(intent)
             }
             
-            binding.tvProxyStatus.text = "代理运行中 (端口: $proxyPort)"
-            binding.btnStartProxy.isEnabled = false
-            binding.btnStopProxy.isEnabled = true
+            updateProxyUI()
             Toast.makeText(this@MainActivity, "代理已启动", Toast.LENGTH_SHORT).show()
         }
     }
@@ -245,10 +321,19 @@ class MainActivity : AppCompatActivity() {
             stopService(intent)
         }
         
-        binding.tvProxyStatus.text = "代理已停止"
-        binding.btnStartProxy.isEnabled = true
-        binding.btnStopProxy.isEnabled = false
+        updateProxyUI()
         Toast.makeText(this, "代理已停止", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun updateProxyUI() {
+        val isRunning = proxyService?.isRunning() == true
+        binding.btnStartProxy.isEnabled = !isRunning
+        binding.btnStopProxy.isEnabled = isRunning
+        binding.tvProxyStatus.text = if (isRunning) {
+            "代理运行中 (端口: ${proxyService?.let { "8080" } ?: "-"})"
+        } else {
+            "代理已停止"
+        }
     }
 
     private fun updateUI() {
