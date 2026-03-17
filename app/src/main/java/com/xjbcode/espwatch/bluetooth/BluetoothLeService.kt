@@ -36,6 +36,7 @@ class BluetoothLeService : Service() {
     
     private val scanJob = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var isScanning = false
+    private var scanCallback: ScanCallback? = null
     
     var isConnected = false
         private set
@@ -98,7 +99,7 @@ class BluetoothLeService : Service() {
         onScanStateChanged?.invoke(true)
         Log.d(TAG, "Starting BLE scan")
 
-        val scanCallback = object : ScanCallback() {
+        scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val device = result.device
                 val rssi = result.rssi
@@ -124,6 +125,7 @@ class BluetoothLeService : Service() {
             override fun onScanFailed(errorCode: Int) {
                 Log.e(TAG, "Scan failed with error: $errorCode")
                 isScanning = false
+                scanCallback = null
                 onScanStateChanged?.invoke(false)
             }
         }
@@ -138,7 +140,7 @@ class BluetoothLeService : Service() {
         bluetoothAdapter?.bluetoothLeScanner?.startScan(
             null,  // No filter - scan all devices
             scanSettings,
-            scanCallback
+            scanCallback!!
         )
 
         // Auto-stop scan after 30 seconds
@@ -153,10 +155,13 @@ class BluetoothLeService : Service() {
     @SuppressLint("MissingPermission")
     fun stopScan() {
         if (isScanning) {
-            bluetoothAdapter?.bluetoothLeScanner?.stopScan(object : ScanCallback() {})
-            isScanning = false
-            onScanStateChanged?.invoke(false)
-            Log.d(TAG, "BLE scan stopped")
+            scanCallback?.let { callback ->
+                bluetoothAdapter?.bluetoothLeScanner?.stopScan(callback)
+                isScanning = false
+                scanCallback = null
+                onScanStateChanged?.invoke(false)
+                Log.d(TAG, "BLE scan stopped")
+            }
         }
     }
 

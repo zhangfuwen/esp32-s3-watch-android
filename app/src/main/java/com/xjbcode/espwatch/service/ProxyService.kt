@@ -267,7 +267,7 @@ class ProxyService : Service() {
             }
             
             // Execute request through OkHttp
-            val requestBody = if (body != null) okhttp3.RequestBody.create(null, body) else null
+            val requestBody = if (body != null) okhttp3.RequestBody.create(body) else null
             val request = when (method.uppercase()) {
                 "GET" -> requestBuilder.url(url).get()
                 "POST" -> requestBuilder.url(url).post(requestBody!!)
